@@ -1,22 +1,7 @@
-#!python3
-
 import math
 import random
-import itertools
 import sys
-from plot_counts import *
-from write_counts import *
-from add_noise import *
-from resolve import *
 
-sig = 5.45 #barns
-den = 15.8 #per cm^C3
-#den = 14.2 #reduced by 10%
-#den = 7.9 #reduced by 50%
-#den = 12.64 #reduced by 20%
-mass = 183.8 #u
-thres = 2 #cm/sec
-mfp = mass/((6.022*10**23)*den*sig*(10**-24))
 dt = 0.01 # sec
 thres = 2 #cm/sec
 v = 50 #an arbitrary velocity, cm/sec
@@ -51,55 +36,12 @@ def scale(v, a):
 def dot(v1, v2):
 	return sum(tuple(x*y for x, y in zip(v1,v2)))
 
-'''
-def in_target(p):
-	if not ((50-w/2)<=p.pos[2]<=(50+w/2)): return False
-	for k in range(1,n+1):
-		if (-100+200*k/(n+1)-w/2) <= p.pos[1] <= (-100+200*k/(n+1)+w/2): return True
-	return False
-'''
+def write(fname, distr):
+	f = open(fname, 'w')
+	for res in distr:
+		f.write('{}\n'.format(res))
+	f.close()
 
-'''
-def in_target(p):
-	#grating
-	return (40<=p.pos[2]<=60) and ((-12.5 <= p.pos[1] <= 12.5) or (-12.5 <= p.pos[1]+50 <= 12.5) \
-		or (-12.5 <= p.pos[1]-50 <= 12.5))
-'''
-
-'''
-def in_target(p):
-	#star shape
-	t = math.atan(p.pos[1]/p.pos[0])
-	pi = math.pi
-	return (47.5<=p.pos[2]<=52.5) and math.sqrt(p.pos[0]**2+p.pos[1]**2)<95 and \
-		((0<=t<=pi/12) or (2*pi/12<=t<=3*pi/12) or (4*pi/12<=t<=5*pi/12) or (-2*pi/12<=t<=-pi/12) or \
-		(-4*pi/12<=t<=-3*pi/12) or (-6*pi/12<=t<=-5*pi/12))
-'''
-
-
-def in_target(p):
-	#ring
-	r = math.sqrt(p.pos[0]**2 + p.pos[1]**2)
-	theta = math.atan(p.pos[1]/p.pos[0])
-
-	#no diversion/density reduction
-	#return (47.5<=p.pos[2]<=52.5) and 10<=r<=15
-
-	#local 10% diversion
-	#return (47.5<=p.pos[2]<=52.5) and 10<=r<=15 and not (0<=theta<=math.pi/5 and p.pos[0] > 0)
-
-	#spread-out 10% diversion
-	return (47.5<=p.pos[2]<=52.5) and 10<=r<=14.577
-
-	#thickness 10% reduction
-	#return (47.75<=p.pos[2]<=52.25) and 10<=r<=15
-
-
-def in_bounds(p, det_len):
-	return math.fabs(p.pos[0])<=(d/2) and math.fabs(p.pos[1])<=(d/2) and (-det_len)<=p.pos[2]<=105
-
-def in_detector(p, det_len):
-	return (-det_len)<=p.pos[2]<=0
 
 def isodir():
 	r1 = random.random()
@@ -117,42 +59,89 @@ def hemidir():
 	phi = 2*math.pi*r2
 	return (rho*math.cos(phi), rho*math.sin(phi),w)
 
-def newpart():
-	#return Particle((100-200*random.random(),100-200*random.random(),100), hemidir(), 100)
-	return Particle(((d/2)-d*random.random(),d/2-d*random.random(),100), (0,0,-1), 14400)
 
-def detect(p, det_len):
-	while in_detector(p, det_len):
-		#if random.random() <= v*dt*R: return (p.pos[0],p.pos[1],p.en)
-		#if random.random() <= -v_det*dt*p.dir[2]/det_len: return (p.pos[0],p.pos[1],p.en)
-		if random.random() <= -2*v_det*dt*p.dir[2]/det_len: return (p.pos[0],p.pos[1],p.en)
-		p.newpos(tuple(add(p.pos, scale(p.dir, v_det*dt))))
-	return
+class Target:
+	def __init__(self, sig, den, mass):
+		sig = 5.45 #barns
+		den = 15.8 #per cm^C3
+		#den = 14.2 #reduced by 10%
+		#den = 7.9 #reduced by 50%
+		#den = 12.64 #reduced by 20%
+		mass = 183.8 #u
+		self.mass = mass
+		self.mfp = mass/((6.022*10**23)*den*sig*(10**-24))
 
-def run(det_len):
-	p = newpart()
-	while in_bounds(p, det_len) and not in_target(p) and not in_detector(p, det_len):
-		p.newpos(tuple(add(p.pos, scale(p.dir, v*dt))))
-	if not in_bounds(p, det_len):
+	def in_target(self, p):
+		#ring
+		r = math.sqrt(p.pos[0]**2 + p.pos[1]**2)
+		theta = math.atan(p.pos[1]/p.pos[0])
+
+		#no diversion/density reduction
+		#return (47.5<=p.pos[2]<=52.5) and 10<=r<=15
+
+		#local 10% diversion
+		#return (47.5<=p.pos[2]<=52.5) and 10<=r<=15 and not (0<=theta<=math.pi/5 and p.pos[0] > 0)
+
+		#spread-out 10% diversion
+		return (47.5<=p.pos[2]<=52.5) and 10<=r<=14.577
+
+		#thickness 10% reduction
+		#return (47.75<=p.pos[2]<=52.25) and 10<=r<=15
+
+	def __str__(self):
+		return 'tungsten_ring'
+
+class Experiment:
+	def __init__(self, target, runs, det_len, bank_size):
+		'set up variables and perform runs'
+		self.det_len = det_len
+		self.mfp = target.mfp
+		self.mass = target.mass
+		self.in_target = target.in_target
+		self.d = bank_size
+		distr = []
+		for i in range(runs):
+			res = self.run()
+			if res: distr.append(res)
+		out_name = '{0}_runs{1}_detlen{2}_size{3}.counts'.format(target.__str__(), runs, det_len, bank_size)
+		write(out_name,distr)
+
+	def run(self):
+		p = self.newpart()
+		while self.in_bounds(p) and not self.in_target(p) and not self.in_detector(p):
+			p.newpos(tuple(add(p.pos, scale(p.dir, v*dt))))
+		if self.in_target(p):
+			step = scale(p.dir, -self.mfp*math.log(1-random.random()))
+			p.newpos(add(p.pos, step))
+		while self.in_bounds(p) and self.in_target(p):
+			ndir = isodir()
+			step = scale(ndir, -self.mfp*math.log(1-random.random()))
+			p.newen(p.en*(1+2*dot(p.dir, ndir)/self.mass))
+			p.newdir(ndir)
+			p.newpos(add(p.pos, step))
+		while self.in_bounds(p) and not self.in_detector(p):
+			p.newpos(add(p.pos, scale(p.dir, v*dt)))
+		if not self.in_bounds(p):
+			return
+		if self.in_detector(p):
+			return detect(p)
+
+	def in_bounds(self, p):
+		return math.fabs(p.pos[0])<=(self.d/2) and math.fabs(p.pos[1])<=(self.d/2) and (-self.det_len)<=p.pos[2]<=105
+
+	def in_detector(self, p):
+		return (-self.det_len)<=p.pos[2]<=0
+
+	def newpart(self):
+		return Particle(((self.d/2)-d*random.random(),self.d/2-self.d*random.random(),100), (0,0,-1), 14400)
+
+	def detect(self, p):
+		while self.in_detector(p):
+			#if random.random() <= v*dt*R: return (p.pos[0],p.pos[1],p.en)
+			#if random.random() <= -v_det*dt*p.dir[2]/det_len: return (p.pos[0],p.pos[1],p.en)
+			if random.random() <= -2*v_det*dt*p.dir[2]/self.det_len: return (p.pos[0],p.pos[1],p.en)
+			p.newpos(tuple(add(p.pos, scale(p.dir, v_det*dt))))
 		return
-	elif in_detector(p, det_len):
-		return detect(p, det_len)
-	if in_target(p):
-		step = scale(p.dir, -mfp*math.log(1-random.random()))
-		p.newpos(add(p.pos, step))
-	while in_bounds(p, det_len) and in_target(p):
-		ndir = isodir()
-		step = scale(ndir, -mfp*math.log(1-random.random()))
-		p.newen(p.en*(1+2*dot(p.dir, ndir)/mass))
-		p.newdir(ndir)
-		p.newpos(add(p.pos, step))
-		if p.en <= thres: return
-	while in_bounds(p, det_len) and not in_detector(p, det_len):
-		p.newpos(add(p.pos, scale(p.dir, v*dt)))
-	if not in_bounds(p, det_len):
-		return
-	if in_detector(p, det_len):
-		return detect(p, det_len)
 
 def categorize(results, n, x0, y0, dim, thres):
 	''' n = number of detectors on a side; dim = side length in cm of detector bank'''
@@ -166,62 +155,10 @@ def categorize(results, n, x0, y0, dim, thres):
 			det[x][y] += 1
 	return det
 
-def radial_contrast(counts, det_count, x0, y0, dim, res):
-	amplitudes = []
-	for i in range(40):
-		amp = resolve(counts, det_count, i/4, -d/2, -d/2, d, res)
-		amplitudes.append(amp)
-
-	rad_contrast = []
-	for i in range(40):
-		avg = sum(amplitudes[i])/res
-		contrast = math.sqrt(sum([(ct - avg)**2 for ct in amplitudes[i]])/res)
-		rad_contrast.append([i/4, contrast])
-
-	return rad_contrast
-
-def run_comparisons():
-	for k in range(11, 21):
-		det_len = k/2
-		runs = []
-
-		for i in range(50000):
-			res = run(det_len)
-			if res:
-				runs.append(res)
-
-		for det_count in range(20, 30, 10):
-
-			counts = categorize(runs, det_count, -d/2, -d/2, d, 20)
-
-			rad_contrasts = radial_contrast(counts, det_count, -d/2, -d/2, d, 100)
-			contrast_out = open('contrasts_L{}_Ct{}.dat'.format(det_len, det_count), 'w')
-			for i in range(40):
-				contrast_out.write('{}\t{}\n'.format(rad_contrasts[i][0], rad_contrasts[i][1]))
-
-			out_name = 'L{}_Ct{}_D50'.format(det_len, det_count)
-			write(counts, out_name)
-			plot(counts, out_name)
-
-			#noisy = add_noise(counts)
-			#write(noisy, out_name+"_noisy")
-			#plot(noisy, out_name+"_noisy")
-
 def main():
-	print('mfp:' + str(mfp))
-	det_len = 8
-	det_count = 40
-	runs = []
-	for i in range(10**5):
-		res = run(det_len)
-		if res:
-			runs.append(res)
-	counts = categorize(runs, det_count, -d/2, -d/2, d, 20)
-	#out_name = 'density_deviation_den{}_1'.format(den)
-	out_name = 'spread_diversion'
-	write(counts, out_name)
-	plot(counts, out_name)
-	#print('finished run {}\n'.format(k))
+	tgt = Target(1,2,3)
+	ex = Experiment(tgt, 10, 8, 50)
 
 if __name__ == "__main__":
-	main()
+	tgt = Target(1,2,3)
+	ex = Experiment(tgt, 10, 8, 50)
