@@ -76,14 +76,11 @@ class Target:
 		r = math.sqrt(p.pos[0]**2 + p.pos[1]**2)
 		theta = math.atan(p.pos[1]/p.pos[0])
 
-		#no diversion/density reduction
-		#return (47.5<=p.pos[2]<=52.5) and 10<=r<=15
-
 		#local 10% diversion
 		#return (47.5<=p.pos[2]<=52.5) and 10<=r<=15 and not (0<=theta<=math.pi/5 and p.pos[0] > 0)
 
 		#spread-out 10% diversion
-		return (47.5<=p.pos[2]<=52.5) and 10<=r<=14.577
+		#return (47.5<=p.pos[2]<=52.5) and 10<=r<=14.577
 
 		#thickness 10% reduction
 		#return (47.75<=p.pos[2]<=52.25) and 10<=r<=15
@@ -124,7 +121,7 @@ class Experiment:
 		if not self.in_bounds(p):
 			return
 		if self.in_detector(p):
-			return detect(p)
+			return self.detect(p)
 
 	def in_bounds(self, p):
 		return math.fabs(p.pos[0])<=(self.d/2) and math.fabs(p.pos[1])<=(self.d/2) and (-self.det_len)<=p.pos[2]<=105
@@ -159,6 +156,11 @@ def main():
 	tgt = Target(1,2,3)
 	ex = Experiment(tgt, 10, 8, 50)
 
-if __name__ == "__main__":
+def test():
+	p = Particle((0.1,0.1,39), (0,0,0), 0)
 	tgt = Target(1,2,3)
 	ex = Experiment(tgt, 10, 8, 50)
+	print ex.in_target(p)
+
+if __name__ == "__main__":
+	test()
