@@ -131,22 +131,6 @@ class Simulation:
 	def __str__(self):
 		return '{0}_runs{1}_detlen{2}_size{3}'.format(self.tgt.__str__(), self.runs, self.det_len, self.d)
 
-def categorize(results, n, x0, y0, dim, thres):
-	''' n = number of detectors on a side; dim = side length in cm of detector bank'''
-	sz = dim/n
-	det = [[0 for j in range(n)] for i in range(n)]
-	in_range = lambda i, j: (x0<i<(x0+dim) and y0<j<(y0+dim))
-	for coord in results:
-		if coord[2] >= thres and in_range(coord[0], coord[1]):
-			x = int((coord[0] - x0)//sz)
-			y = int((coord[1] - y0)//sz)
-			det[x][y] += 1
-	return det
-
-def main():
-	tgt = Target(1,2,3)
-	ex = Experiment(tgt, 10, 8, 50)
-
 def test():
 	p = Particle((0.1,0.1,39), (0,0,0), 0)
 	tgt = Target(1,2,3)
