@@ -14,5 +14,8 @@ def density():
             out_name = '/u/cguo/SpringJP/density_tests/' + str(sim) + '_run{0}.counts'.format(i)
             write(out_name, distr)
 
+def target_set():
+    outer_radii =
+
 if __name__ == "__main__":
     density()
