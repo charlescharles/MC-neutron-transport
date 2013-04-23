@@ -89,12 +89,13 @@ class Simulation:
 			res = self.run()
 			if res: self.distr.append(res)
 		#out_name = self.__str__() + '.counts'
-		#write(out_name, distr)
+		#write(out_name, self.distr)
 
 	def run(self):
 		p = self.newpart()
-		while self.in_bounds(p) and not self.in_target(p) and not self.in_detector(p):
-			p.newpos(tuple(add(p.pos, scale(p.dir, v*dt))))
+		#while self.in_bounds(p) and not self.in_target(p) and not self.in_detector(p):
+			#p.newpos(tuple(add(p.pos, scale(p.dir, v*dt))))
+		p.newpos(tuple(add(p.pos, scale(p.dir, (55.0-p.pos[2])/p.dir[2]))))
 		if self.in_target(p):
 			step = scale(p.dir, -self.mfp*math.log(1-random.random()))
 			p.newpos(add(p.pos, step))
@@ -104,12 +105,14 @@ class Simulation:
 			p.newen(p.en*(1+2*dot(p.dir, ndir)/self.mass))
 			p.newdir(ndir)
 			p.newpos(add(p.pos, step))
-		while self.in_bounds(p) and not self.in_detector(p):
-			p.newpos(add(p.pos, scale(p.dir, v*dt)))
+		#while self.in_bounds(p) and not self.in_detector(p):
+			#p.newpos(add(p.pos, scale(p.dir, v*dt)))
+		p.newpos(tuple(add(p.pos, scale(p.dir, -1.0*p.pos[2]/p.dir[2]))))
 		if not self.in_bounds(p):
 			return
-		if self.in_detector(p):
-			return self.detect(p)
+		#if self.in_detector(p):
+
+		return self.detect(p)
 
 	def in_bounds(self, p):
 		return math.fabs(p.pos[0])<=(self.d/2) and math.fabs(p.pos[1])<=(self.d/2) and (-self.det_len)<=p.pos[2]<=105
