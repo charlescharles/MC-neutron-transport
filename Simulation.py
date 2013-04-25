@@ -107,8 +107,7 @@ class Simulation:
 		#while self.in_bounds(p) and not self.in_detector(p):
 			#p.newpos(add(p.pos, scale(p.dir, v*dt)))
 		p.newpos(tuple(add(p.pos, scale(p.dir, -1.0*p.pos[2]/p.dir[2]))))
-		if not self.in_bounds(p):
-			return
+		if not self.in_bounds(p): return
 		#if self.in_detector(p):
 
 		return self.detect(p)
