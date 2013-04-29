@@ -3,6 +3,7 @@
 import math, re, os
 from bin import bin
 from scipy import stats
+from pylab import *
 
 
 def chi_sq(template_cts, test_cts):
@@ -13,6 +14,34 @@ def chi_sq(template_cts, test_cts):
             chisq += (temp_ct - test_ct)**2/(temp_ct+1.0)
     return chisq
 
+
+def sensitivity(pval_thres, dev_thres):
+    counts = {}
+    devs = {}
+    with open('chisq_variations', 'rU') as f:
+        for line in f:
+            rad, dof, deviation, chisq = [float(x) for x in line.split()]
+            if deviation >= dev_thres:
+                if rad not in counts:
+                    counts[rad] = 0
+                    devs[rad] = 0
+
+                counts[rad] += 1  # counts[rad][1] = list representing the total counts
+                pval = 1 - stats.chi2.cdf(chisq, dof)
+                if pval <= pval_thres:
+                    devs[rad] += 1
+    rads = []
+    sens = []
+    for rad in sorted(counts):
+        rads.append(rad)
+        #sens.append(devs[rad])
+        sens.append(1.0*devs[rad]/counts[rad] if counts[rad] > 0 else -1)
+    plot(rads, sens)
+    xlabel('radius (cm)')
+    ylabel('sensitivity')
+    grid(True)
+    savefig("sens_vs_rad.png")
+    show()
 
 def classification_power(pval_thres, dev_thres):
     counts = {}
@@ -53,14 +82,14 @@ def classification_power(pval_thres, dev_thres):
 
 
 def classify_chisq(thres, bucket_size):
-    f = open('chisq_variations', 'rU')
-    f_out = open('variation_results', 'w')
+    f = open('processed_dim_variations', 'rU')
+    f_out = open('dim_variation_results_bkt{}'.format(bucket_size), 'w')
     counts = {}
     for line in f:
         rad, dof, deviation, chisq = [float(x) for x in line.split()]
         if rad not in counts:
             counts[rad] = [[], []]
-        index = int(deviation//bucket_size)
+        index = int(math.fabs(deviation)//bucket_size)
         if index >= len(counts[rad][0]):
             n = index - len(counts[rad][0]) + 1
             counts[rad][0].extend([0 for x in range(n)])
@@ -80,5 +109,6 @@ def classify_chisq(thres, bucket_size):
 
 
 if __name__ == '__main__':
-    #classify_chisq(0.05, 0.01)
-    classification_power(0.05, 0.003)
+    sensitivity(0.05, 0.02)
+    #classify_chisq(0.05, 0.5)
+    #classification_power(0.05, 0.01)

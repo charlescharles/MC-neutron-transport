@@ -62,20 +62,21 @@ def hemidir():
 
 
 class Target:
-    def __init__(self, mfp1, mfp2, r1, r2, r3, descr=None):
+    def __init__(self, mfp1, mfp2, x1, descr=None):
         self.mfp1, self.mfp2 = mfp1, mfp2
-        self.r1, self.r2, self.r3 = r1, r2, r3
-        if descr: self.descr = descr
+        self.x1 = x1
+        self.descr = descr
 
     def in_target(self, p):
         r = math.sqrt(p.pos[0]**2 + p.pos[1]**2)
-        return (50 <= p.pos[2] <= 55) and r <= self.r3
+        return (50 <= p.pos[2] <= 55) and r <= 10
 
     def get_mfp(self, p):
         r = math.sqrt(p.pos[0]**2 + p.pos[1]**2)
-        if r <= self.r1: return self.mfp1
-        if r <= self.r2: return self.mfp2
-        else: return self.mfp1
+        rp = math.sqrt((p.pos[0] - self.x1)**2 + p.pos[1]**2)
+        if rp <= 1.5: return self.mfp1
+        if r <= 8: return self.mfp2
+        if r <= 10: return self.mfp1
 
     def __str__(self):
         return self.descr

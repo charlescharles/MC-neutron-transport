@@ -45,6 +45,22 @@ def density():
             write(out_name, distr)
 
 
+def dim_template():
+    template = Target(5.286, 23.705, 0, descr='dim_template')
+    sim = Simulation(template, runs=int(1e7), det_len=8, bank_size=50)
+    out_name = 'templates/dim_template'
+    write(out_name, sim.distr)
+
+
+def dim_variations(num):
+    for i in range(num):
+        x1 = random.uniform(-7, 7)
+        tgt = Target(5.286, 23.705, x1, descr=('%.4f' % x1))
+        sim = Simulation(target=tgt, runs=int(1e5), det_len=8, bank_size=50)
+        #out_name = str(sim)
+        out_name = '/u/cguo/SpringJP/dim_variations_rad1.5/' + str(sim)
+        write(out_name, sim.distr)
+
 def random_target():
     r1 = random.uniform(2, 4)
     r2 = random.uniform(6, 8)
@@ -73,4 +89,5 @@ def variations(num):
 
 
 if __name__ == "__main__":
-    variations(int(sys.argv[1]))
+    if sys.argv[1] == 'template': dim_template()
+    else: dim_variations(int(sys.argv[1]))

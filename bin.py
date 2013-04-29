@@ -19,7 +19,7 @@ def bin(fname, radius):
         parts = line.split()
         try:
             (x, y) = (float(parts[0]), float(parts[1]))
-        except ValueError:
+        except (ValueError, IOError):
             continue
         (x, y) = (x + d/2, d/2 - y)
         #now the bottomleft corner is at (0,0) and topright is (n,n)
