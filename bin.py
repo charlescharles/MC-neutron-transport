@@ -7,22 +7,20 @@ def bin(fname, radius):
     'bins counts into cylindrical detectors'
     diam = 2.0*radius
     r = re.compile(r'_size([0-9]+)')
-    d = float(r.search(fname).group(1))
-    '''
-    if 1.0*d%diam != 0:
-        print('diameter not divisible into detector side length.')
-        print('detector side length: {0}'.format(d))
-        raise Exception('detector ({0}) indivisible by diameter ({1})!'.format(d, diam))
-        return
-    '''
-
+    try:
+        d = float(r.search(fname).group(1))
+    except AttributeError:
+        d = 50
     #n = the number of detectors on a side
     n = int(d/diam)
     counts = [[0 for i in range(n)] for j in range(n)]
     f = open(fname, 'rU')
     for line in f:
         parts = line.split()
-        (x, y) = (float(parts[0]), float(parts[1]))
+        try:
+            (x, y) = (float(parts[0]), float(parts[1]))
+        except ValueError:
+            continue
         (x, y) = (x + d/2, d/2 - y)
         #now the bottomleft corner is at (0,0) and topright is (n,n)
         # after flipping across x-axis and shifting up d/2 and right d/2

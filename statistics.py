@@ -1,44 +1,84 @@
-import math
+#!python3
+
+import math, re, os
 from bin import bin
-from scipy.stats import chi2
+from scipy import stats
+
 
 def chi_sq(template_cts, test_cts):
-    'calculated chi-squared goodness-of-fit'
+    'calculate chi-squared goodness-of-fit'
     chisq = 0
     for temp_row, test_row in zip(template_cts, test_cts):
         for temp_ct, test_ct in zip(temp_row, test_row):
             chisq += (temp_ct - test_ct)**2/(temp_ct+1.0)
     return chisq
 
-def is_deviation(template_cts, test_cts, thres):
-    'classify as the same or not the same based on chi-squared goodness-of-fit test'
-    chisq = chi_sq(template_cts, test_cts)
-    dof = (len(template_cts[0]))**2 - 1
-    pval = 1 - chi2.cdf(chisq, dof)
-    if pval <= thres: return True
-    else: return False
 
-def efficiencies(rad):
-    mfp_list = [1.0, 1.5, 2, 2.5, 3, 3.25, 3.4, 3.54, 3.7, 4.0]
-    template = bin('counts/tungsten_ring_runs1000000_detlen8_size50.counts', rad)
-    n = len(template[0])
-    for i in range(n):
-        for j in range(n):
-            template[i][j] /= 10
-    eps = []
-    for mfp in mfp_list:
-        eff = 0
-        for i in range(10):
-            fname = 'counts/density_tests/tungsten_ring_den{0}_runs100000_detlen8_size50_run{1}.counts'.format(str(mfp), str(i))
-            test = bin(fname, rad)
-            if is_deviation(template, test, 0.05): eff += 1
-        eps.append(eff)
-    return eps
+def classification_power(pval_thres, dev_thres):
+    counts = {}
+    devs = {}
+    with open('chisq_variations', 'rU') as f:
+        for line in f:
+            rad, dof, deviation, chisq = [float(x) for x in line.split()]
+            if deviation >= dev_thres:
+                if rad not in counts:
+                    counts[rad] = 0
+                    devs[rad] = 0
 
-if __name__ == "__main__":
-    radii = [i*0.5 for i in range(1, 14)]
-    f_out = open('eff_vs_mfp', 'w')
-    for rad in radii:
-        print('r = {0}'.format(rad) + str(efficiencies(rad)))
-        f_out.write('r = {0}'.format(rad) + str(efficiencies(rad)) + '\n')
+                counts[rad] += 1  # counts[rad][1] = list representing the total counts
+                pval = 1 - stats.chi2.cdf(chisq, dof)
+                if pval <= pval_thres:
+                    devs[rad] += 1
+    with open('sensitivities', 'w') as f:
+        for rad in sorted(counts):
+            f.write('%.2f\t%.4f\n' % (rad, 1.0*devs[rad]/counts[rad] if counts[rad] > 0 else -1))
+
+    counts = {}
+    devs = {}
+    with open('chisq_variations', 'rU') as f:
+        for line in f:
+            rad, dof, deviation, chisq = [float(x) for x in line.split()]
+            if deviation <= dev_thres:
+                if rad not in counts:
+                    counts[rad] = 0
+                    devs[rad] = 0
+
+                counts[rad] += 1  # counts[rad][1] = list representing the total counts
+                pval = 1 - stats.chi2.cdf(chisq, dof)
+                if pval <= pval_thres:
+                    devs[rad] += 1
+    with open('specificities', 'w') as f:
+        for rad in sorted(counts):
+            f.write('%.2f\t%.4f\n' % (rad, 1.0*devs[rad]/counts[rad] if counts[rad] > 0 else -1))
+
+
+def classify_chisq(thres, bucket_size):
+    f = open('chisq_variations', 'rU')
+    f_out = open('variation_results', 'w')
+    counts = {}
+    for line in f:
+        rad, dof, deviation, chisq = [float(x) for x in line.split()]
+        if rad not in counts:
+            counts[rad] = [[], []]
+        index = int(deviation//bucket_size)
+        if index >= len(counts[rad][0]):
+            n = index - len(counts[rad][0]) + 1
+            counts[rad][0].extend([0 for x in range(n)])
+            counts[rad][1].extend([0 for x in range(n)])
+        print('index:{}'.format(index))
+
+        counts[rad][1][index] += 1  # counts[rad][1] = list representing the total counts
+        pval = 1 - stats.chi2.cdf(chisq, dof)
+        if pval <= thres: counts[rad][0][index] += 1  # counts[rad][0] = list representing deviated counts
+
+    for rad in sorted(counts):
+        for i, (dev, total) in enumerate(zip(counts[rad][0], counts[rad][1])):
+            f_out.write('%.2f\t%.5f\t%.9f\n' % (rad, (i + 0.5)*bucket_size, (1.0*dev/total if total > 0 else 0)))
+            #f_out.write('%.1f\t%.1f\t%.3f\n' % (rad, (i + 0.5)*bucket_size, dev))
     f_out.close()
+    f.close()
+
+
+if __name__ == '__main__':
+    #classify_chisq(0.05, 0.01)
+    classification_power(0.05, 0.003)
