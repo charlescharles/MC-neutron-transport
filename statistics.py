@@ -18,7 +18,7 @@ def chi_sq(template_cts, test_cts):
 def sensitivity(pval_thres, dev_thres):
     counts = {}
     devs = {}
-    with open('chisq_variations', 'rU') as f:
+    with open('processed_dim_variations_rad1.5', 'rU') as f:
         for line in f:
             rad, dof, deviation, chisq = [float(x) for x in line.split()]
             if deviation >= dev_thres:
@@ -36,11 +36,13 @@ def sensitivity(pval_thres, dev_thres):
         rads.append(rad)
         #sens.append(devs[rad])
         sens.append(1.0*devs[rad]/counts[rad] if counts[rad] > 0 else -1)
+        print(rad)
     plot(rads, sens)
     xlabel('radius (cm)')
     ylabel('sensitivity')
+    xticks(list(range(1, 10)))
     grid(True)
-    savefig("sens_vs_rad.png")
+    savefig("sens_vs_rad_rad15_cutoff_1.png")
     show()
 
 def classification_power(pval_thres, dev_thres):
@@ -82,8 +84,8 @@ def classification_power(pval_thres, dev_thres):
 
 
 def classify_chisq(thres, bucket_size):
-    f = open('processed_dim_variations', 'rU')
-    f_out = open('dim_variation_results_bkt{}'.format(bucket_size), 'w')
+    f = open('processed_dim_variations_rad1.5', 'rU')
+    f_out = open('dim_variation_results_rad1.5_bkt{}'.format(bucket_size), 'w')
     counts = {}
     for line in f:
         rad, dof, deviation, chisq = [float(x) for x in line.split()]
@@ -94,11 +96,12 @@ def classify_chisq(thres, bucket_size):
             n = index - len(counts[rad][0]) + 1
             counts[rad][0].extend([0 for x in range(n)])
             counts[rad][1].extend([0 for x in range(n)])
-        print('index:{}'.format(index))
 
         counts[rad][1][index] += 1  # counts[rad][1] = list representing the total counts
         pval = 1 - stats.chi2.cdf(chisq, dof)
         if pval <= thres: counts[rad][0][index] += 1  # counts[rad][0] = list representing deviated counts
+        if deviation >= 6:
+            print('rad:{};deviation:{};dof:{};chisq:{};index:{};pval:{}'.format(rad,deviation,dof,chisq,index,pval))
 
     for rad in sorted(counts):
         for i, (dev, total) in enumerate(zip(counts[rad][0], counts[rad][1])):
@@ -109,6 +112,6 @@ def classify_chisq(thres, bucket_size):
 
 
 if __name__ == '__main__':
-    sensitivity(0.05, 0.02)
+    sensitivity(0.05, 1)
     #classify_chisq(0.05, 0.5)
     #classification_power(0.05, 0.01)

@@ -36,7 +36,7 @@ def process_counts():
     # continue from where the previous session left off.
     # if no file exists, create one.
     try:
-        with open('processed_dim_variations', 'r') as f:
+        with open('processed_dim_variations_rad1.5', 'r') as f:
             try:
                 last = list(f)[-1]
                 last_rad = float(last.split()[0])
@@ -46,7 +46,7 @@ def process_counts():
         last_rad = 0.5
 
     radii = [i*0.5 for i in range(int(2*last_rad), 20)]
-    files = os.listdir('dim_variations')
+    files = os.listdir('dim_variations_rad1.5')
     for rad in radii:
         print('rad:{0}'.format(rad))
         template = bin('templates/dim_template', rad)
@@ -55,11 +55,11 @@ def process_counts():
             for j in range(n):
                 template[i][j] /= 100
         # write and close one radius at a time.
-        with open('processed_dim_variations', 'a') as f_out:
+        with open('processed_dim_variations_rad1.5', 'a') as f_out:
             for fname in files:
                 print(fname)
                 deviation = r.search(fname).group(1)
-                test = bin('dim_variations/' + fname, rad)
+                test = bin('dim_variations_rad1.5/' + fname, rad)
                 dof = n**2 - 1
 
                 f_out.write('{0}\t{1}\t{2}\t{3}\n'.format(rad, dof, deviation, chi_sq(template, test)))

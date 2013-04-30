@@ -39,7 +39,10 @@ if __name__ == "__main__":
         print("usage:\n\t'python bin '[filename.counts]' [detector-radius]'")
     else:
         counts = bin(sys.argv[1], float(sys.argv[2]))
-        plot(counts)
+        if any(sys.argv[3:]):
+            fname = sys.argv[3]
+            plot(counts, fname)
+        else: plot(counts)
         total = 0
         for row in counts:
             print('{}\n'.format(row))

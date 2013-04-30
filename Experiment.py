@@ -46,9 +46,9 @@ def density():
 
 
 def dim_template():
-    template = Target(5.286, 23.705, 0, descr='dim_template')
+    template = Target(5.286, 23.705, 0, descr='dim_template_rad1.5')
     sim = Simulation(template, runs=int(1e7), det_len=8, bank_size=50)
-    out_name = 'templates/dim_template'
+    out_name = '/u/cguo/SpringJP/templates/dim_template'
     write(out_name, sim.distr)
 
 
