@@ -1,42 +1,27 @@
-import math
-import random
-import sys
+import math, random, sys
 
 dt = 0.01  # sec
-v_det = 50  #arbitary velocity inside detector; lower vel = more accuracy
+v_det = 50  # arbitrary velocity inside detector; lower vel = more accuracy
 random.seed()
 
 
-class Particle:
-    #def __init__(self, pos, direc, energy):
-    def __init__(self, pos, direc):
-        self.pos = pos
-        self.dir = direc
-
-    def newpos(self, pos):
-        self.pos = pos
-
-    def newdir(self, direc):
-        self.dir = direc
-
-'''
-    def newen(self, energy):
-        self.en = energy
-'''
-
 def add(v1, v2):
+    """Return tuple sum of tuples by element."""
     return tuple(x + y for x, y in zip(v1, v2))
 
 
 def scale(v, a):
+    """Return tuple of v scaled by a."""
     return tuple(x*a for x in v)
 
 
 def dot(v1, v2):
+    """Return scalar dot product of v1 and v2."""
     return sum(tuple(x*y for x, y in zip(v1, v2)))
 
 
 def write(fname, distr):
+    """Writes count distribution (in the form of a list of (x, y, energy)) to fname."""
     with open(fname, 'w') as f:
         for i, res in enumerate(distr):
             #f.write('{0}\t{1}\t{2}\n'.format(res[0], res[1], res[2]))
@@ -44,6 +29,7 @@ def write(fname, distr):
 
 
 def isodir():
+    """Return a tuple of isotropically randomly generated Cartesian coords."""
     r1 = random.random()
     r2 = random.random()
     w = 1 - 2*r1
@@ -53,6 +39,7 @@ def isodir():
 
 
 def hemidir():
+    """Return a tuple of randomly generated Cartesian coords uniformly distributed over negative hemisphere."""
     r1 = random.random()
     r2 = random.random()
     w = r1 - 1
@@ -61,17 +48,31 @@ def hemidir():
     return (rho*math.cos(phi), rho*math.sin(phi), w)
 
 
+class Particle:
+    """Represents a particle with energy and vector position and direction."""
+    def __init__(self, pos, direc, energy):
+        self.pos = pos
+        self.dir = direc
+        self.en = energy
+
+
 class Target:
+    """Represents a scattering target."""
     def __init__(self, mfp1, mfp2, x1, descr=None):
+        """Initialize the target composition and geometry."""
         self.mfp1, self.mfp2 = mfp1, mfp2
         self.x1 = x1
         self.descr = descr
 
     def in_target(self, p):
+        """Returns true if particle is within target, false otherwise.
+            Modify this to reflect target geometry
+        """
         r = math.sqrt(p.pos[0]**2 + p.pos[1]**2)
         return (50 <= p.pos[2] <= 55) and r <= 10
 
     def get_mfp(self, p):
+        """Return mean-free-path of target material at particle's current position."""
         r = math.sqrt(p.pos[0]**2 + p.pos[1]**2)
         rp = math.sqrt((p.pos[0] - self.x1)**2 + p.pos[1]**2)
         if rp <= 1.5: return self.mfp1
@@ -79,6 +80,7 @@ class Target:
         if r <= 10: return self.mfp1
 
     def __str__(self):
+        """Return descriptive string of this target."""
         return self.descr
 
 '''
@@ -92,52 +94,69 @@ class Target:
 
 class Simulation:
     def __init__(self, target, runs, det_len, bank_size):
-        'set up variables and perform runs'
+        """Run a simulation.
+        Keyword arguments:
+        target object, number of runs, detector length, side length of detector bank
+        """
         self.det_len = det_len
         self.tgt = target
         self.runs = int(runs)
         self.in_target = target.in_target
         self.d = bank_size
-        self.distr = []
+        self.queue = []  # initialize queue to hold fission neutrons
         for i in range(int(runs)):
-            res = self.run()
-            if res: self.distr.append(res)
-        #out_name = self.__str__() + '.counts'
-        #write(out_name, self.distr)
+            self.run()
+
+    def collimated_particle(self):
+        """Returns a Particle at z=100 traveling in negative-z direction"""
+        return Particle(((self.d/2)-self.d*random.random(), self.d/2-self.d*random.random(), 100), (0, 0, -1), 14100)
 
     def run(self):
-        p = self.newpart()
-        p.newpos(tuple(add(p.pos, scale(p.dir, (55.0-p.pos[2])/p.dir[2]))))
+        """Simulate a single particle's path.
+        Returns either a tuple containing (x, y, en) where:
+            (x, y) is the location of bubble formation in detector
+            en is the energy of the particle at detection in keV
+        or None, if the particle goes out of bounds 
+        """
+        if not self.queue:  # if there are no fission particles to simulate
+            p = self.collimated_particle()
+            p.pos = add(p.pos, scale(p.dir, (55.0-p.pos[2])/p.dir[2]))
+        else:  # simulate fission particle if there remain any
+            p = self.queue.pop()
         if self.in_target(p):
             step = scale(p.dir, -self.tgt.get_mfp(p)*math.log(1-random.random()))
-            p.newpos(add(p.pos, step))
+            p.pos = add(p.pos, step)
         while self.in_bounds(p) and self.in_target(p):
             ndir = isodir()
             step = scale(ndir, -self.tgt.get_mfp(p)*math.log(1-random.random()))
-            #p.newen(p.en*(1+2*dot(p.dir, ndir)/self.tgt.get_mass(p)))
-            p.newdir(ndir)
-            p.newpos(add(p.pos, step))
-        p.newpos(tuple(add(p.pos, scale(p.dir, -1.0*p.pos[2]/p.dir[2]))))
-        if not self.in_bounds(p): return
-
-        return self.detect(p)
+            p.en *= (1+2*dot(p.dir, ndir)/self.tgt.get_mass(p))
+            p.dir = ndir
+            p.pos = add(p.pos, step)
+        p.pos = add(p.pos, scale(p.dir, -1.0*p.pos[2]/p.dir[2]))
+        if self.in_bounds(p) and self.in_detector(p):
+            self.detect(p)
 
     def in_bounds(self, p):
-        return math.fabs(p.pos[0])<=(self.d/2) and math.fabs(p.pos[1])<=(self.d/2) and (-self.det_len)<=p.pos[2]<=105
+        """Returns true if particle is within the simulated volume; else false."""
+        return math.fabs(p.pos[0]) <= (self.d/2) \
+            and math.fabs(p.pos[1]) <= (self.d/2) \
+            and (-self.det_len) <= p.pos[2] <= 105
 
     def in_detector(self, p):
-        return (-self.det_len)<=p.pos[2]<=0
-
-    def newpart(self):
-        #return Particle(((self.d/2)-self.d*random.random(),self.d/2-self.d*random.random(),100), (0,0,-1), 14400)
-        return Particle(((self.d/2)-self.d*random.random(), self.d/2-self.d*random.random(), 100), (0, 0, -1))
+        """Returns true if particle is within detector bank; else false."""
+        return (-self.det_len) <= p.pos[2] <= 0
 
     def detect(self, p):
+        """Simulates particle path through detector, adding to the distribution
+            if a bubble is formed.
+        """
         while self.in_detector(p) and self.in_bounds(p):
-            #if random.random() <= -2*v_det*dt*p.dir[2]/self.det_len: return (p.pos[0],p.pos[1],p.en)
-            if random.random() <= -2*v_det*dt*p.dir[2]/self.det_len: return (p.pos[0], p.pos[1])
-            p.newpos(tuple(add(p.pos, scale(p.dir, v_det*dt))))
-        return
+            if random.random() <= -2*v_det*dt*p.dir[2]/self.det_len:
+                self.distr.append((p.pos[0], p.pos[1], p.en))
+            p.pos = add(p.pos, scale(p.dir, v_det*dt))
 
     def __str__(self):
+        """Return an identifying string for this simulation containing:
+            target description string, # runs, detector length, and detector bank side length
+        """
         return '{0}_runs{1}_detlen{2}_size{3}'.format(self.tgt.__str__(), self.runs, self.det_len, self.d)
