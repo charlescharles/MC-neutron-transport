@@ -21,17 +21,11 @@ def template():
     mfp2 = find_mfp(sig2, den2, mass2)
 
     template_obj = Target(mfp1=mfp1, mfp2=mfp2, r1=3.0, r2=7.0, r3=10.0, m1=mass1, m2=mass2, descr='template_obj')
-    sim = Simulation(target=template_obj, runs=int(1e5), det_len=8, bank_size=50)
-
-    '''
-    tungsten_ring = Target(sig=5.45, den=15.8, mass=183.8, descr='tungsten_ring')
-    sim = Simulation(target=tungsten_ring, runs=int(1e5), det_len=8, bank_size=50)
-    distr = sim.distr
-    '''
+    sim = Simulation(target=template_obj, runs=int(1e7), det_len=8, bank_size=50, dist = 100)
 
     out_name = str(sim) + '.counts'
     distr = sim.distr
-    write(out_name, distr)
+    write(out_name, distr   )
 
 
 def density():
@@ -46,19 +40,21 @@ def density():
 
 
 def dim_template():
-    template = Target(5.286, 23.705, 0, descr='dim_template_rad1.5')
-    sim = Simulation(template, runs=int(1e7), det_len=8, bank_size=50)
-    out_name = '/u/cguo/SpringJP/templates/dim_template'
+    distance = 75
+    template = Target(5.286, 23.705, 0, dist=distance, descr='dim_template_rad1.5')
+    sim = Simulation(template, runs=int(1e7), det_len=8, bank_size=50, dist=distance)
+    out_name = '/u/cguo/SpringJP/templates/dim_template_dist' + str(distance)
     write(out_name, sim.distr)
 
 
 def dim_variations(num):
     for i in range(num):
         x1 = random.uniform(-7, 7)
-        tgt = Target(5.286, 23.705, x1, descr=('%.4f' % x1))
-        sim = Simulation(target=tgt, runs=int(1e5), det_len=8, bank_size=50)
+        distance = 100
+        tgt = Target(5.286, 23.705, x1, dist=distance, descr=('%.4f_%d' % (x1, distance)))
+        sim = Simulation(target=tgt, runs=int(1e5), det_len=8, bank_size=50, dist=distance)
         #out_name = str(sim)
-        out_name = '/u/cguo/SpringJP/dim_variations_rad1.5/' + str(sim)
+        out_name = '/u/cguo/SpringJP/dim_variations_rad1.5_dist{}/{}'.format(distance, sim)
         write(out_name, sim.distr)
 
 def random_target():

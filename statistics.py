@@ -84,8 +84,8 @@ def classification_power(pval_thres, dev_thres):
 
 
 def classify_chisq(thres, bucket_size):
-    f = open('processed_dim_variations_rad1.5', 'rU')
-    f_out = open('dim_variation_results_rad1.5_bkt{}'.format(bucket_size), 'w')
+    f = open('processed_dim_variations_dist75', 'rU')
+    f_out = open('dim_variation_results_dist75_bkt{}'.format(bucket_size), 'w')
     counts = {}
     for line in f:
         rad, dof, deviation, chisq = [float(x) for x in line.split()]
@@ -100,18 +100,18 @@ def classify_chisq(thres, bucket_size):
         counts[rad][1][index] += 1  # counts[rad][1] = list representing the total counts
         pval = 1 - stats.chi2.cdf(chisq, dof)
         if pval <= thres: counts[rad][0][index] += 1  # counts[rad][0] = list representing deviated counts
-        if deviation >= 6:
+        if pval >= thres:
             print('rad:{};deviation:{};dof:{};chisq:{};index:{};pval:{}'.format(rad,deviation,dof,chisq,index,pval))
 
     for rad in sorted(counts):
         for i, (dev, total) in enumerate(zip(counts[rad][0], counts[rad][1])):
-            f_out.write('%.2f\t%.5f\t%.9f\n' % (rad, (i + 0.5)*bucket_size, (1.0*dev/total if total > 0 else 0)))
+            f_out.write('%.2f\t%.3f\t%.5f\n' % (rad, (i + 0.5)*bucket_size, (1.0*dev/total if total > 0 else 0)))
             #f_out.write('%.1f\t%.1f\t%.3f\n' % (rad, (i + 0.5)*bucket_size, dev))
     f_out.close()
     f.close()
 
 
 if __name__ == '__main__':
-    sensitivity(0.05, 1)
-    #classify_chisq(0.05, 0.5)
+    #sensitivity(0.05, 1)
+    classify_chisq(0.05, 0.5)
     #classification_power(0.05, 0.01)

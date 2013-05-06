@@ -10,7 +10,7 @@ def add(v1, v2):
     return tuple(x + y for x, y in zip(v1, v2))
 
 
-def scale(v, a):
+def scale(v, a):    
     """Return tuple of v scaled by a."""
     return tuple(x*a for x in v)
 
@@ -57,19 +57,22 @@ class Particle:
 
 
 class Target:
-    """Represents a scattering target."""
-    def __init__(self, mfp1, mfp2, x1, descr=None):
+    """Represents a scattering target.
+        Contains information on target geometry and composition.
+    """
+    def __init__(self, mfp1, mfp2, x1, dist, descr=None):
         """Initialize the target composition and geometry."""
         self.mfp1, self.mfp2 = mfp1, mfp2
         self.x1 = x1
         self.descr = descr
+        self.dist = dist
 
     def in_target(self, p):
         """Returns true if particle is within target, false otherwise.
             Modify this to reflect target geometry
         """
         r = math.sqrt(p.pos[0]**2 + p.pos[1]**2)
-        return (50 <= p.pos[2] <= 55) and r <= 10
+        return (self.dist <= p.pos[2] <= self.dist+5) and r <= 10
 
     def get_mfp(self, p):
         """Return mean-free-path of target material at particle's current position."""
@@ -82,7 +85,6 @@ class Target:
     def __str__(self):
         """Return descriptive string of this target."""
         return self.descr
-
 '''
     def get_mass(self, p):
         r = math.sqrt(p.pos[0]**2 + p.pos[1]**2)
@@ -93,8 +95,8 @@ class Target:
 
 
 class Simulation:
-    def __init__(self, target, runs, det_len, bank_size):
-        """Run a simulation.
+    def __init__(self, target, runs, det_len, bank_size, dist):
+        """Run a simulation, creating a list of bubbles formed.
         Keyword arguments:
         target object, number of runs, detector length, side length of detector bank
         """
@@ -103,24 +105,23 @@ class Simulation:
         self.runs = int(runs)
         self.in_target = target.in_target
         self.d = bank_size
+        self.dist = dist
+        self.distr = []
         self.queue = []  # initialize queue to hold fission neutrons
         for i in range(int(runs)):
             self.run()
 
     def collimated_particle(self):
         """Returns a Particle at z=100 traveling in negative-z direction"""
-        return Particle(((self.d/2)-self.d*random.random(), self.d/2-self.d*random.random(), 100), (0, 0, -1), 14100)
+        return Particle(((self.d/2)-self.d*random.random(), self.d/2-self.d*random.random(), self.dist + 10), (0, 0, -1), 14100)
 
     def run(self):
-        """Simulate a single particle's path.
-        Returns either a tuple containing (x, y, en) where:
-            (x, y) is the location of bubble formation in detector
-            en is the energy of the particle at detection in keV
-        or None, if the particle goes out of bounds 
+        """Simulate a single particle's path. If a bubble is formed in the detector,
+            add it to the list.
         """
         if not self.queue:  # if there are no fission particles to simulate
             p = self.collimated_particle()
-            p.pos = add(p.pos, scale(p.dir, (55.0-p.pos[2])/p.dir[2]))
+            p.pos = add(p.pos, scale(p.dir, ((self.dist + 5)-p.pos[2])/p.dir[2]))
         else:  # simulate fission particle if there remain any
             p = self.queue.pop()
         if self.in_target(p):
@@ -129,7 +130,7 @@ class Simulation:
         while self.in_bounds(p) and self.in_target(p):
             ndir = isodir()
             step = scale(ndir, -self.tgt.get_mfp(p)*math.log(1-random.random()))
-            p.en *= (1+2*dot(p.dir, ndir)/self.tgt.get_mass(p))
+            #p.en *= (1+2*dot(p.dir, ndir)/self.tgt.get_mass(p))
             p.dir = ndir
             p.pos = add(p.pos, step)
         p.pos = add(p.pos, scale(p.dir, -1.0*p.pos[2]/p.dir[2]))
@@ -140,7 +141,7 @@ class Simulation:
         """Returns true if particle is within the simulated volume; else false."""
         return math.fabs(p.pos[0]) <= (self.d/2) \
             and math.fabs(p.pos[1]) <= (self.d/2) \
-            and (-self.det_len) <= p.pos[2] <= 105
+            and (-self.det_len) <= p.pos[2] <= (self.dist + 20)
 
     def in_detector(self, p):
         """Returns true if particle is within detector bank; else false."""
