@@ -84,8 +84,9 @@ def classification_power(pval_thres, dev_thres):
 
 
 def classify_chisq(thres, bucket_size):
-    f = open('processed_dim_variations_dist75', 'rU')
-    f_out = open('dim_variation_results_dist75_bkt{}'.format(bucket_size), 'w')
+    'Convert chi-squared values to probabilities, and calculate efficiencies'
+    f = open('processed_dim_variations_dist50_detlen5', 'rU')
+    f_out = open('dim_variation_results_dist50_detlen5_bkt{}'.format(bucket_size), 'w')
     counts = {}
     for line in f:
         rad, dof, deviation, chisq = [float(x) for x in line.split()]
@@ -101,7 +102,7 @@ def classify_chisq(thres, bucket_size):
         pval = 1 - stats.chi2.cdf(chisq, dof)
         if pval <= thres: counts[rad][0][index] += 1  # counts[rad][0] = list representing deviated counts
         if pval >= thres:
-            print('rad:{};deviation:{};dof:{};chisq:{};index:{};pval:{}'.format(rad,deviation,dof,chisq,index,pval))
+            print('rad:{};deviation:{};pval:{}'.format(rad,deviation,pval))
 
     for rad in sorted(counts):
         for i, (dev, total) in enumerate(zip(counts[rad][0], counts[rad][1])):
@@ -111,7 +112,44 @@ def classify_chisq(thres, bucket_size):
     f.close()
 
 
+def process_counts():
+    'convert raw counts to chi squared values'
+    #r = re.compile(r'sqdev([0-9.]+)_')
+    r = re.compile(r'([-0-9.]+)_')
+
+    # continue from where the previous session left off.
+    # if no file exists, create one.
+    distance = 50
+    detlen = 5
+    try:
+        with open('processed_dim_variations_dist{0}_detlen{1}'.format(distance, detlen), 'r') as f:
+            try:
+                last = list(f)[-1]
+                last_rad = float(last.split()[0])
+            except IndexError:
+                last_rad = 0.5
+    except EnvironmentError:
+        last_rad = 0.5
+
+    radii = [i*0.5 for i in range(int(2*last_rad), 20)]
+    files = os.listdir('dim_variations_rad1.5_dist{0}_detlen_{1}'.format(distance, detlen))
+    for rad in radii:
+        print('rad:{0}'.format(rad))
+        template = bin('templates/dim_template_dist{0}_detlen_{1}'.format(distance, detlen), rad)
+        n = len(template[0])
+        for i in range(n):
+            for j in range(n):
+                template[i][j] /= 100.0
+        # write and close one radius at a time.
+        with open('processed_dim_variations_dist{0}_detlen{1}'.format(distance, detlen), 'a') as f_out:
+            for fname in files:
+                print(fname)
+                deviation = r.search(fname).group(1)
+                test = bin('dim_variations_rad1.5_dist{0}_detlen_{1}/'.format(distance, detlen) + fname, rad)
+                dof = n**2 - 1
+
+                f_out.write('{0}\t{1}\t{2}\t{3}\n'.format(rad, dof, deviation, chi_sq(template, test)))
+
+
 if __name__ == '__main__':
-    #sensitivity(0.05, 1)
-    classify_chisq(0.05, 0.5)
-    #classification_power(0.05, 0.01)
+    classify_chisq(0.05, 0.1)

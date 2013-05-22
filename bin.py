@@ -22,10 +22,9 @@ def bin(fname, radius):
         except (ValueError, IOError):
             continue
         (x, y) = (x + d/2, d/2 - y)
-        #now the bottomleft corner is at (0,0) and topright is (n,n)
+        # now the bottomleft corner is at (0,0) and topright is (n,n)
         # after flipping across x-axis and shifting up d/2 and right d/2
         (i, j) = (int(x//diam), int(y//diam))
-        #print('x:{}; y:{}; i:{}; j:{}'.format(float(parts[0]), float(parts[1]),i,j))
         (x0, y0) = (i*diam+radius, j*diam+radius)
         if math.sqrt((x-x0)**2 + (y-y0)**2)<=radius:
             try: counts[i][j] += 1
